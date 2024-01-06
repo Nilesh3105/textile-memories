@@ -1,34 +1,43 @@
 'use client';
 
+import MapCore from "./MapCore"
 import React, { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
-import Leaflet from 'leaflet';
 import axios from 'axios';
-import Modal from './Modal';
-import { Drawer, Box } from '@mui/material';
+import { SwipeableDrawer, Box, styled, Typography, Skeleton } from '@mui/material';
+import { grey } from '@mui/material/colors';
+import { Global } from '@emotion/react';
+import CssBaseline from '@mui/material/CssBaseline';
 
-const center = [20.5937, 78.9629]; // Coordinates for India
+const drawerBleeding = 56;
+
+const StyledBox = styled(Box)(({ theme }) => ({
+  backgroundColor: theme.palette.mode === 'light' ? '#fff' : grey[800],
+}));
+
+const Puller = styled(Box)(({ theme }) => ({
+  width: 30,
+  height: 6,
+  backgroundColor: theme.palette.mode === 'light' ? grey[300] : grey[900],
+  borderRadius: 3,
+  position: 'absolute',
+  top: 8,
+  left: 'calc(50% - 15px)',
+}));
+
 
 const Map = () => {
   const [pins, setPins] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedPin, setSelectedPin] = useState(null);
 
-  const openModal = (pin) => {
-    setSelectedPin(pin);
-    setModalOpen(true);
+  const fetchPins = async () => {
+    try {
+      const response = await axios.get('https://piyusharma95.pythonanywhere.com/api/');
+      setPins(response.data.data);
+    } catch (error) {
+      console.error('Error fetching pins:', error);
+    }
   };
-
-  useEffect(() => {
-    (async function init() {
-      delete Leaflet.Icon.Default.prototype._getIconUrl;
-      Leaflet.Icon.Default.mergeOptions({
-        iconRetinaUrl: 'leaflet/images/marker-icon-2x.png',
-        iconUrl: 'leaflet/images/marker-icon.png',
-        shadowUrl: 'leaflet/images/marker-shadow.png',
-      });
-    })();
-  }, []);
 
   useEffect(() => {
     fetchPins();
@@ -39,55 +48,60 @@ const Map = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const fetchPins = async () => {
-    try {
-      const response = await axios.get('http://piyusharma95.pythonanywhere.com/api/');
-      setPins(response.data.data);
-    } catch (error) {
-      console.error('Error fetching pins:', error);
-    }
-  };
-
-  return (
-    <>
-      <MapContainer center={center} zoom={5} style={{ height: '100vh', width: '100wh' }}>
-        <TileLayer
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-        {pins.map((pin, index) => (
-          <Marker key={index} position={[pin.lat, pin.long]}>
-            <Popup>
-              {pin.first} {pin.last}
-              <br />
-              {pin.text.substring(0, 50)}...
-              <br />
-              <audio controls>
-                <source src={`http://jotform.com${pin.recording}`} type="audio/wav" />
-              </audio>
-              <button onClick={() => openModal(pin)}>Show More</button>
-            </Popup>
-          </Marker>
-        ))}
-      </MapContainer>
-
-      <Drawer anchor="left" open={modalOpen} onClose={() => setModalOpen(false)}>
-        <Box
-          width="500px"
-          display="flex"
-          role="presentation"
-          // onClick={setModalOpen(false)}
-          // onKeyDown={setModalOpen(false)}
-        >
-          <h2>Full Text</h2>
-          <p>{selectedPin?.text}</p>
-        </Box>
-      </Drawer>
-      {/* <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)}>
-        <h2>Full Text</h2>
+  return (<>
+    <CssBaseline />
+    <Global
+      styles={{
+        '.MuiDrawer-root > .MuiPaper-root': {
+          height: `calc(50% - ${drawerBleeding}px)`,
+          overflow: 'visible',
+        },
+      }}
+    />
+    <MapCore pins={pins} setModalOpen={setModalOpen} setSelectedPin={setSelectedPin}/>
+    <SwipeableDrawer
+      anchor="bottom"
+      open={modalOpen}
+      onClose={() => setModalOpen(false)}
+      className="max-w-md"
+      swipeAreaWidth={drawerBleeding}
+      disableSwipeToOpen={false}
+      ModalProps={{
+        keepMounted: false,
+      }}
+    >
+      <StyledBox
+        sx={{
+          position: 'absolute',
+          top: -drawerBleeding,
+          borderTopLeftRadius: 8,
+          borderTopRightRadius: 8,
+          visibility: 'visible',
+          right: 0,
+          left: 0,
+        }}
+      >
+        <Puller />
+        <Typography sx={{ p: 2, color: 'text.secondary' }}>51 results</Typography>
+      </StyledBox>
+      <StyledBox
+        sx={{
+          px: 2,
+          pb: 2,
+          height: '100%',
+          overflow: 'auto',
+        }}
+      >
+        <Skeleton variant="rectangular" height="100%" />
+      </StyledBox>
+        {/* <h2>{selectedPin?.first} {selectedPin?.last}</h2>
         <p>{selectedPin?.text}</p>
-      </Modal> */}
-    </>
-  );
-};
+        <audio controls>
+          <source src={`http://jotform.com${selectedPin?.recording}`} type="audio/wav" />
+        </audio> */}
+    </SwipeableDrawer>
+  </>)
+}
+
 
 export default Map;
